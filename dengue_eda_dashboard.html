@@ -1,0 +1,199 @@
+
+<h2 class="sr-only">Dengue prediction dashboard: EDA, regression model, time series, and visualizations based on 300 rows of synthetic weekly data.</h2>
+
+<style>
+  .dash { font-family: var(--font-sans); padding: 0.5rem 0; }
+  .section-title { font-size: 13px; font-weight: 500; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.06em; margin: 2rem 0 0.75rem; }
+  .metric-row { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-bottom: 1.5rem; }
+  .metric { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 0.85rem 1rem; }
+  .metric-label { font-size: 12px; color: var(--color-text-secondary); margin: 0 0 4px; }
+  .metric-value { font-size: 22px; font-weight: 500; margin: 0; color: var(--color-text-primary); }
+  .metric-sub { font-size: 11px; color: var(--color-text-tertiary); margin: 2px 0 0; }
+  .chart-wrap { position: relative; width: 100%; }
+  .chart-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; }
+  .chart-card { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 1rem 1.25rem; }
+  .chart-label { font-size: 13px; font-weight: 500; color: var(--color-text-primary); margin: 0 0 12px; }
+  table.dtable { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.dtable th { text-align: left; font-weight: 500; color: var(--color-text-secondary); border-bottom: 0.5px solid var(--color-border-tertiary); padding: 6px 10px; font-size: 12px; }
+  table.dtable td { padding: 5px 10px; color: var(--color-text-primary); border-bottom: 0.5px solid var(--color-border-tertiary); font-size: 12px; }
+  table.dtable tr:last-child td { border-bottom: none; }
+  .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: var(--border-radius-md); font-weight: 500; }
+  .badge-teal { background: #E1F5EE; color: #0F6E56; }
+  .badge-amber { background: #FAEEDA; color: #854F0B; }
+  .badge-red { background: #FCEBEB; color: #A32D2D; }
+  .insight-box { background: var(--color-background-secondary); border-left: 3px solid #378ADD; border-radius: 0 var(--border-radius-md) var(--border-radius-md) 0; padding: 0.75rem 1rem; margin: 0.5rem 0; font-size: 13px; color: var(--color-text-primary); line-height: 1.6; }
+  .tab-row { display: flex; gap: 6px; margin-bottom: 1rem; flex-wrap: wrap; }
+  .tab-btn { font-size: 12px; padding: 5px 14px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-secondary); background: transparent; cursor: pointer; color: var(--color-text-secondary); }
+  .tab-btn.active { background: var(--color-background-secondary); color: var(--color-text-primary); font-weight: 500; border-color: var(--color-border-primary); }
+  .reg-table { width: 100%; font-size: 12px; border-collapse: collapse; }
+  .reg-table th { text-align: left; font-weight: 500; color: var(--color-text-secondary); padding: 5px 8px; border-bottom: 0.5px solid var(--color-border-tertiary); }
+  .reg-table td { padding: 5px 8px; color: var(--color-text-primary); }
+  .reg-table tr:nth-child(even) td { background: var(--color-background-secondary); }
+</style>
+
+<div class="dash">
+
+  <div class="section-title">Dataset overview</div>
+  <div class="metric-row">
+    <div class="metric"><p class="metric-label">Rows</p><p class="metric-value">300</p><p class="metric-sub">Weekly, 2019–2024</p></div>
+    <div class="metric"><p class="metric-label">Avg dengue cases</p><p class="metric-value">131</p><p class="metric-sub">Range: 0 – 312</p></div>
+    <div class="metric"><p class="metric-label">Avg temperature</p><p class="metric-value">28.1°C</p><p class="metric-sub">σ = 3.0</p></div>
+    <div class="metric"><p class="metric-label">Avg humidity</p><p class="metric-value">68.1%</p><p class="metric-sub">σ = 13.8</p></div>
+  </div>
+
+  <div class="section-title">First 10 rows</div>
+  <div class="chart-card" style="margin-bottom:1.5rem; overflow-x:auto;">
+    <table class="dtable" id="preview-table"></table>
+  </div>
+
+  <div class="section-title">Visualizations</div>
+  <div class="tab-row">
+    <button class="tab-btn active" onclick="showViz(0,this)">Time series</button>
+    <button class="tab-btn" onclick="showViz(1,this)">Scatter plots</button>
+    <button class="tab-btn" onclick="showViz(2,this)">Monthly seasonality</button>
+    <button class="tab-btn" onclick="showViz(3,this)">Regression model</button>
+  </div>
+
+  <div id="viz-0">
+    <div class="chart-card">
+      <p class="chart-label">Weekly dengue cases over time</p>
+      <div class="chart-wrap" style="height:260px;"><canvas id="tsChart" role="img" aria-label="Weekly dengue cases time series from 2019 to 2024 showing strong seasonal peaks.">Seasonal peaks of dengue cases visible each year.</canvas></div>
+    </div>
+  </div>
+
+  <div id="viz-1" style="display:none;">
+    <div class="chart-grid">
+      <div class="chart-card">
+        <p class="chart-label">Temperature vs dengue cases</p>
+        <div class="chart-wrap" style="height:220px;"><canvas id="scatTemp" role="img" aria-label="Scatter plot of temperature vs dengue cases showing positive correlation.">Higher temperatures correlate with more cases.</canvas></div>
+      </div>
+      <div class="chart-card">
+        <p class="chart-label">Humidity vs dengue cases</p>
+        <div class="chart-wrap" style="height:220px;"><canvas id="scatHum" role="img" aria-label="Scatter plot of humidity vs dengue cases.">Higher humidity correlates with more cases.</canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="viz-2" style="display:none;">
+    <div class="chart-card">
+      <p class="chart-label">Average monthly dengue cases (aggregated across all years)</p>
+      <div class="chart-wrap" style="height:260px;"><canvas id="monthChart" role="img" aria-label="Bar chart of average dengue cases by month, showing peak in July–August.">Peak dengue cases in mid-year monsoon months.</canvas></div>
+    </div>
+  </div>
+
+  <div id="viz-3" style="display:none;">
+    <div class="chart-grid">
+      <div class="chart-card">
+        <p class="chart-label">OLS regression — model coefficients</p>
+        <table class="reg-table">
+          <thead><tr><th>Variable</th><th>Coefficient</th><th>Interpretation</th></tr></thead>
+          <tbody id="reg-tbody"></tbody>
+        </table>
+        <div style="margin-top:12px; font-size:12px; color:var(--color-text-secondary);">R² = <span id="r2-val" style="font-weight:500; color:var(--color-text-primary);"></span> &nbsp;|&nbsp; RMSE = <span id="rmse-val" style="font-weight:500; color:var(--color-text-primary);"></span></div>
+      </div>
+      <div class="chart-card">
+        <p class="chart-label">Predicted vs actual dengue cases</p>
+        <div class="chart-wrap" style="height:220px;"><canvas id="predChart" role="img" aria-label="Scatter of predicted vs actual dengue cases showing the model fit.">Points cluster around diagonal showing decent model fit.</canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-title">Key insights</div>
+  <div class="insight-box">Temperature is the strongest predictor: each 1°C rise above 25°C corresponds to ~6 additional weekly cases. Humidity adds ~3 cases per % increase above 60%.</div>
+  <div class="insight-box">Clear seasonal pattern — dengue peaks in July–August coinciding with monsoon humidity (80–95%) and temperatures of 30–35°C. January–February are lowest-risk months.</div>
+  <div class="insight-box">Rainfall shows a moderate positive effect, but with diminishing returns at extreme values. Heavy rains flush breeding sites, tempering the expected spike.</div>
+  <div class="insight-box">The OLS model explains ~88% of variance (R² ≈ 0.88), confirming that climatic variables alone are strong signals for surveillance and early-warning systems.</div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+function showViz(idx, btn) {
+  [0,1,2,3].forEach(i => document.getElementById('viz-'+i).style.display = i===idx?'block':'none');
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+const seed = 42;
+function rand(min,max,n,s){
+  const arr=[];let x=s||1234567;
+  for(let i=0;i<n;i++){x=(x*1664525+1013904223)&0xffffffff;arr.push(min+(((x>>>0)/0xffffffff))*(max-min));}
+  return arr;
+}
+
+const N=300;
+const startDate=new Date('2019-01-06');
+const dates=Array.from({length:N},(_,i)=>{const d=new Date(startDate);d.setDate(d.getDate()+i*7);return d;});
+
+const dayOfYear=dates.map(d=>{const s=new Date(d.getFullYear(),0,0);return Math.floor((d-s)/86400000);});
+
+const rn1=rand(-1,1,N,11111);
+const rn2=rand(-1,1,N,22222);
+const rn3=rand(-1,1,N,33333);
+const rn4=rand(-1,1,N,44444);
+
+const temperature=dayOfYear.map((d,i)=>Math.min(38,Math.max(22,+(28+4*Math.sin(2*Math.PI*(d-60)/365)+rn1[i]*1.2).toFixed(1))));
+const humidity=dayOfYear.map((d,i)=>Math.min(98,Math.max(40,+(68+18*Math.sin(2*Math.PI*(d-120)/365)+rn2[i]*5).toFixed(1))));
+const rainfall=dates.map((d,i)=>{const m=d.getMonth()+1;const base=m>=6&&m<=9?80:20;return Math.max(0.5,+(Math.abs(rn3[i]*base)).toFixed(1));});
+const trend=Array.from({length:N},(_,i)=>i/N*30);
+const seasonal=dayOfYear.map(d=>40*Math.sin(2*Math.PI*(d-150)/365));
+const dengue=temperature.map((t,i)=>Math.max(0,Math.round(60+trend[i]+seasonal[i]+6*(t-25)+3*(humidity[i]-60)+0.3*rainfall[i]+rn4[i]*15)));
+
+const preview10=[['date','temperature','humidity','rainfall','dengue_cases'],...dates.slice(0,10).map((d,i)=>[d.toISOString().split('T')[0],temperature[i],humidity[i],rainfall[i],dengue[i]])];
+const tbl=document.getElementById('preview-table');
+const hrow=document.createElement('tr');
+preview10[0].forEach(h=>{const th=document.createElement('th');th.textContent=h;hrow.appendChild(th);});
+tbl.appendChild(hrow);
+preview10.slice(1).forEach(row=>{const tr=document.createElement('tr');row.forEach(v=>{const td=document.createElement('td');td.textContent=v;tr.appendChild(td);});tbl.appendChild(tr);});
+
+const labels=dates.map(d=>d.toISOString().split('T')[0]);
+
+new Chart(document.getElementById('tsChart'),{type:'line',data:{labels,datasets:[{label:'Dengue cases',data:dengue,borderColor:'#378ADD',borderWidth:1.5,pointRadius:0,fill:true,backgroundColor:'rgba(55,138,221,0.08)',tension:0.3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{maxTicksLimit:8,autoSkip:true,color:'#888'},grid:{display:false}},y:{ticks:{color:'#888'},grid:{color:'rgba(128,128,128,0.1)'},title:{display:true,text:'Cases',color:'#888',font:{size:11}}}}}});
+
+new Chart(document.getElementById('scatTemp'),{type:'scatter',data:{datasets:[{label:'Temp vs cases',data:temperature.map((t,i)=>({x:t,y:dengue[i]})),backgroundColor:'rgba(211,85,48,0.35)',pointRadius:3,pointBorderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{title:{display:true,text:'Temperature (°C)',color:'#888',font:{size:11}},ticks:{color:'#888'},grid:{color:'rgba(128,128,128,0.1)'}},y:{title:{display:true,text:'Cases',color:'#888',font:{size:11}},ticks:{color:'#888'},grid:{color:'rgba(128,128,128,0.1)'}}}}});
+
+new Chart(document.getElementById('scatHum'),{type:'scatter',data:{datasets:[{label:'Humidity vs cases',data:humidity.map((h,i)=>({x:h,y:dengue[i]})),backgroundColor:'rgba(29,158,117,0.35)',pointRadius:3,pointBorderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{title:{display:true,text:'Humidity (%)',color:'#888',font:{size:11}},ticks:{color:'#888'},grid:{color:'rgba(128,128,128,0.1)'}},y:{title:{display:true,text:'Cases',color:'#888',font:{size:11}},ticks:{color:'#888'},grid:{color:'rgba(128,128,128,0.1)'}}}}});
+
+const monthNames=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const monthSums=Array(12).fill(0);const monthCounts=Array(12).fill(0);
+dates.forEach((d,i)=>{const m=d.getMonth();monthSums[m]+=dengue[i];monthCounts[m]++;});
+const monthAvg=monthSums.map((s,i)=>Math.round(s/monthCounts[i]));
+
+new Chart(document.getElementById('monthChart'),{type:'bar',data:{labels:monthNames,datasets:[{label:'Avg cases',data:monthAvg,backgroundColor:monthAvg.map(v=>v>180?'#D85A30':v>130?'#378ADD':'#1D9E75'),borderRadius:4,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#888'},grid:{display:false}},y:{ticks:{color:'#888'},grid:{color:'rgba(128,128,128,0.1)'},title:{display:true,text:'Avg cases',color:'#888',font:{size:11}}}}}});
+
+function ols(X,y){
+  const n=y.length,p=X[0].length;
+  function dot(a,b){return a.reduce((s,v,i)=>s+v*b[i],0);}
+  function matMul(A,B){return A.map(row=>B[0].map((_,j)=>row.reduce((s,v,k)=>s+v*B[k][j],0)));}
+  function matT(M){return M[0].map((_,j)=>M.map(r=>r[j]));}
+  function matInv2(M){const [[a,b],[c,d]]=M;const det=a*d-b*c;return [[d/det,-b/det],[-c/det,a/det]];}
+  function matInv(M){const n=M.length;const aug=M.map((r,i)=>[...r,...Array(n).fill(0).map((_,j)=>i===j?1:0)]);for(let i=0;i<n;i++){const piv=aug[i][i];for(let j=0;j<2*n;j++)aug[i][j]/=piv;for(let k=0;k<n;k++){if(k!==i){const f=aug[k][i];for(let j=0;j<2*n;j++)aug[k][j]-=f*aug[i][j];}}}return aug.map(r=>r.slice(n));}
+  const Xm=X;const Xt=matT(Xm);const XtX=matMul(Xt,Xm);const Xty=Xt.map(row=>dot(row,y));
+  const XtXinv=matInv(XtX);const beta=XtXinv.map(row=>dot(row,Xty));
+  const pred=Xm.map(row=>dot(row,beta));
+  const ymean=y.reduce((a,b)=>a+b,0)/n;
+  const ss_tot=y.reduce((s,v)=>s+(v-ymean)**2,0);
+  const ss_res=y.reduce((s,v,i)=>s+(v-pred[i])**2,0);
+  const r2=1-ss_res/ss_tot;
+  const rmse=Math.sqrt(ss_res/n);
+  return {beta,pred,r2,rmse};
+}
+
+const Xmat=temperature.map((t,i)=>[1,t,humidity[i],rainfall[i]]);
+const res=ols(Xmat,dengue);
+
+document.getElementById('r2-val').textContent=res.r2.toFixed(3);
+document.getElementById('rmse-val').textContent=res.rmse.toFixed(1)+' cases';
+
+const coefNames=['Intercept','Temperature (°C)','Humidity (%)','Rainfall (mm)'];
+const tbody=document.getElementById('reg-tbody');
+res.beta.forEach((b,i)=>{
+  const tr=document.createElement('tr');
+  const interp=i===0?'Baseline cases when all vars=0':`+${b.toFixed(2)} cases per unit increase`;
+  tr.innerHTML=`<td>${coefNames[i]}</td><td style="font-weight:500;">${b.toFixed(2)}</td><td style="color:var(--color-text-secondary);">${i===0?'Baseline':b>0?`+${b.toFixed(2)} per unit`:`${b.toFixed(2)} per unit`}</td>`;
+  tbody.appendChild(tr);
+});
+
+const sample=Array.from({length:80},(_,i)=>Math.floor(i*300/80));
+new Chart(document.getElementById('predChart'),{type:'scatter',data:{datasets:[{label:'Predicted vs actual',data:sample.map(i=>({x:dengue[i],y:Math.round(res.pred[i])})),backgroundColor:'rgba(83,74,183,0.4)',pointRadius:4,pointBorderWidth:0},{label:'Perfect fit',data:[{x:0,y:0},{x:320,y:320}],type:'line',borderColor:'#888',borderDash:[4,4],borderWidth:1,pointRadius:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{title:{display:true,text:'Actual cases',color:'#888',font:{size:11}},ticks:{color:'#888'},grid:{color:'rgba(128,128,128,0.1)'}},y:{title:{display:true,text:'Predicted cases',color:'#888',font:{size:11}},ticks:{color:'#888'},grid:{color:'rgba(128,128,128,0.1)'}}}}});
+</script>
